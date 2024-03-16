@@ -1,80 +1,88 @@
-import Controller from "@ember/controller";
-import { notEmpty } from "@ember/object/computed";
+import Component from "@ember/component";
+import { action } from "@ember/object";
+import { tracked } from "@glimmer/tracking";
 import showModal from "discourse/lib/show-modal";
-import discourseComputed from "discourse-common/utils/decorators";
-import Message from "../mixins/message";
 import { A } from "@ember/array";
 
-export default Controller.extend(Message, {
-  hasEvents: notEmpty("events"),
-  selectedEvents: A(),
-  selectAll: false,
-  order: null,
-  asc: null,
-  view: "event",
+export default class AdminEventsEventComponent extends Component {
+    @tracked events = A();
+    @tracked selectedEvents = A();
+    @tracked selectAll = false;
+    @tracked order = null;
+    @tracked asc = null;
+    @tracked view = "event";
+    @tracked showSelect = false;
+    @tracked flash = null;
+    @tracked flashType = null;
 
-  @discourseComputed("selectedEvents.[]", "hasEvents")
-  deleteDisabled(selectedEvents, hasEvents) {
-    return !hasEvents || !selectedEvents.length;
-  },
+    get hasEvents() {
+        return this.events.length > 0;
+    }
 
-  @discourseComputed("hasEvents")
-  selectDisabled(hasEvents) {
-    return !hasEvents;
-  },
+    get deleteDisabled() {
+        return !this.hasEvents || !this.selectedEvents.length;
+    }
 
-  actions: {
+    get selectDisabled() {
+        return !this.hasEvents;
+    }
+
+    @action
     showSelect() {
-      this.toggleProperty("showSelect");
+        this.showSelect = !this.showSelect;
 
-      if (!this.showSelect) {
-        this.setProperties({
-          selectedEvents: A(),
-          selectAll: false,
-        });
-      }
-    },
+        if (!this.showSelect) {
+            this.selectedEvents = A();
+            this.selectAll = false;
+        }
+    }
 
+    @action
     modifySelection(events, checked) {
-      if (checked) {
-        this.get("selectedEvents").pushObjects(events);
-      } else {
-        this.get("selectedEvents").removeObjects(events);
-      }
-    },
+        if (checked) {
+            this.selectedEvents.pushObjects(events);
+        } else {
+            this.selectedEvents.removeObjects(events);
+        }
+    }
 
+    @action
     openDelete() {
-      const modal = showModal("events-confirm-event-deletion", {
-        model: {
-          events: this.selectedEvents,
-        },
-      });
+        const modal = showModal("events-confirm-event-deletion", {
+            model: {
+                events: this.selectedEvents,
+            },
+        });
 
-      modal.setProperties({
-        onDestroyEvents: (
-          destroyedEvents = null,
-          destroyedTopicsEvents = null
-        ) => {
-          if (destroyedEvents) {
-            this.get("events").removeObjects(destroyedEvents);
-          }
+        modal.setProperties({
+            onDestroyEvents: (
+                destroyedEvents = null,
+                destroyedTopicsEvents = null
+            ) => {
+                if (destroyedEvents) {
+                    this.events.removeObjects(destroyedEvents);
+                }
 
-          if (destroyedTopicsEvents) {
-            const destroyedTopicsEventIds = destroyedTopicsEvents.map(
-              (e) => e.id
-            );
+                if (destroyedTopicsEvents) {
+                    const destroyedTopicsEventIds = destroyedTopicsEvents.map(
+                        (e) => e.id
+                    );
 
-            this.get("events").forEach((event) => {
-              if (destroyedTopicsEventIds.includes(event.id)) {
-                event.set("topics", null);
-              }
-            });
-          }
-        },
-        onCloseModal: () => {
-          this.send("showSelect");
-        },
-      });
-    },
-  },
-});
+                    this.events.forEach((event) => {
+                        if (destroyedTopicsEventIds.includes(event.id)) {
+                            event.topics = null;
+                        }
+                    });
+                }
+            },
+            onCloseModal: () => {
+                this.showSelect();
+            },
+        });
+    }
+
+    @action
+    myCloseModalWrapper() {
+        this.args.closeModal();
+    }
+}

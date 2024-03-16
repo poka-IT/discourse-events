@@ -1,91 +1,84 @@
-import {
-  default as discourseComputed,
-  observes,
-} from "discourse-common/utils/decorators";
+import Component from "@ember/component";
 import { getOwner } from "discourse-common/lib/get-owner";
 import { ajax } from "discourse/lib/ajax";
-import ModalFunctionality from "discourse/mixins/modal-functionality";
-import { extractError } from "discourse/lib/ajax-error";
-import Controller from "@ember/controller";
 import { action } from "@ember/object";
+import { tracked } from "@glimmer/tracking";
+import { extractError } from "discourse/lib/ajax-error";
 
-export default Controller.extend(ModalFunctionality, {
-  filter: null,
-  userList: [],
-  type: "going",
+export default class EventRsvpComponent extends Component {
+    @tracked filter = null;
+    @tracked userList = [];
+    @tracked type = "going";
+    @tracked loadingList = false;
+    @tracked flash = null;
+    @tracked flashType = null;
 
-  @observes("type", "model.topic")
-  setUserList() {
-    this.set("loadingList", true);
-
-    const type = this.get("type");
-    const topic = this.get("model.topic");
-
-    let usernames = topic.get(`event.${type}`);
-
-    if (!usernames || !usernames.length) {
-      return;
+    get goingNavClass() {
+        return this.type === "going" ? "active" : "";
     }
 
-    ajax("/discourse-events/rsvp/users", {
-      data: {
-        usernames,
-      },
-    })
-      .then((response) => {
-        let userList = response.users || [];
+    get filteredList() {
+        let userList = this.userList;
 
-        this.setProperties({
-          userList,
-          loadingList: false,
-        });
-      })
-      .catch((e) => {
-        this.flash(extractError(e), "alert-error");
-      })
-      .finally(() => {
-        this.setProperties({
-          loadingList: false,
-        });
-      });
-  },
-
-  @discourseComputed("type")
-  goingNavClass(type) {
-    return type === "going" ? "active" : "";
-  },
-
-  @discourseComputed("userList", "filter")
-  filteredList(userList, filter) {
-    if (filter) {
-      userList = userList.filter((u) => u.username.indexOf(filter) > -1);
-    }
-
-    const currentUser = this.get("currentUser");
-    if (currentUser) {
-      userList.sort((a) => {
-        if (a.username === currentUser.username) {
-          return -1;
-        } else {
-          return 1;
+        if (this.filter) {
+            userList = userList.filter((u) => u.username.indexOf(this.filter) > -1);
         }
-      });
+
+        const currentUser = this.currentUser;
+        if (currentUser) {
+            userList.sort((a) => {
+                if (a.username === currentUser.username) {
+                    return -1;
+                } else {
+                    return 1;
+                }
+            });
+        }
+
+        return userList;
     }
 
-    return userList;
-  },
+    setUserList() {
+        this.loadingList = true;
 
-  @action
-  setType(type) {
-    event?.preventDefault();
-    this.set("type", type);
-  },
+        const type = this.type;
+        const topic = this.model.topic;
 
-  actions: {
+        let usernames = topic[`event.${type}`];
+
+        if (!usernames || !usernames.length) {
+            return;
+        }
+
+        ajax("/discourse-events/rsvp/users", {
+            data: {
+                usernames,
+            },
+        })
+            .then((response) => {
+                this.userList = response.users || [];
+                this.loadingList = false;
+            })
+            .catch((e) => {
+                this.flash = extractError(e);
+                this.flashType = "alert-error";
+            })
+            .finally(() => {
+                this.loadingList = false;
+            });
+    }
+
+    @action
+    setType(type) {
+        event?.preventDefault();
+        this.type = type;
+        this.setUserList();
+    }
+
+    @action
     composePrivateMessage(user) {
-      const controller = getOwner(this).lookup("controller:application");
-      this.send("closeModal");
-      controller.send("composePrivateMessage", user);
-    },
-  },
-});
+        const controller = getOwner(this).lookup("controller:application");
+        this.send("closeModal");
+        controller.send("composePrivateMessage", user);
+    }
+}

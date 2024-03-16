@@ -1,17 +1,7 @@
-import {
-  default as discourseComputed,
-  observes,
-  on,
-} from "discourse-common/utils/decorators";
-import {
-  calendarDays,
-  calendarRange,
-  eventsForDay,
-} from "../lib/date-utilities";
-import { alias, not, or } from "@ember/object/computed";
-import Category from "discourse/models/category";
 import Component from "@ember/component";
-import { bind, scheduleOnce } from "@ember/runloop";
+import { computed } from "@ember/object";
+import { not, alias, or } from "@ember/object/computed";
+import { bind } from "@ember/runloop";
 import { inject as service } from "@ember/service";
 import I18n from "I18n";
 
@@ -23,35 +13,34 @@ const YEARS = [
 ];
 
 export default Component.extend({
-  classNameBindings: [":events-calendar", "responsive"],
+  classNames: ["events-calendar"],
+  classNameBindings: ["responsive"],
   showEvents: not("eventsBelow"),
   canSelectDate: alias("eventsBelow"),
   routing: service("-routing"),
   queryParams: alias(
-    "routing.router.currentState.routerJsState.fullQueryParams"
+    "routing.router.currentRoute.queryParams"
   ),
-  years: YEARS.map((y) => ({ id: y, name: y })),
+  years: computed(function() {
+    return YEARS.map((y) => ({ id: y, name: y }));
+  }),
   layoutName: "components/events-calendar",
   webcalDocumentationURL: "https://coop.pavilion.tech/t/1447",
 
-  @on("init")
-  setup() {
-    this._super();
+  init() {
+    this._super(...arguments);
     moment.locale(I18n.locale);
 
-    scheduleOnce("afterRender", () => {
-      this.handleResize();
-      $(window).on("resize", bind(this, this.handleResize));
-      $("body").addClass("calendar");
-    });
+    this.handleResize();
+    window.addEventListener("resize", bind(this, this.handleResize));
+    document.body.classList.add("calendar");
 
     let currentDate = moment().date();
     let currentMonth = moment().month();
     let currentYear = moment().year();
 
-    // get month and year from the date in middle of the event range
-    const initialDateRange = this.get("initialDateRange");
-    const queryParams = this.get("queryParams");
+    const initialDateRange = this.initialDateRange;
+    const queryParams = this.queryParams;
     let dateRange = {};
     if (initialDateRange) {
       dateRange = initialDateRange;
@@ -78,22 +67,22 @@ export default Component.extend({
     this.setProperties({ currentDate, currentMonth, currentYear, month, year });
   },
 
-  @discourseComputed("siteSettings.login_required", "category.read_restricted")
-  showNotice(loginRequired, categoryRestricted) {
+  showNotice: computed("siteSettings.login_required", "category.read_restricted", function() {
+    const loginRequired = this.siteSettings.login_required;
+    const categoryRestricted = this.category.read_restricted;
     return loginRequired || categoryRestricted;
-  },
+  }),
 
-  @on("willDestroy")
-  teardown() {
-    $(window).off("resize", bind(this, this.handleResize));
-    $("body").removeClass("calendar");
+  willDestroy() {
+    window.removeEventListener("resize", bind(this, this.handleResize));
+    document.body.classList.remove("calendar");
   },
 
   handleResize() {
-    if (this._state === "destroying") {
+    if (this.isDestroyed) {
       return;
     }
-    this.set("responsiveBreak", $(window).width() < RESPONSIVE_BREAKPOINT);
+    this.set("responsiveBreak", window.innerWidth < RESPONSIVE_BREAKPOINT);
   },
 
   forceResponsive: false,
@@ -101,101 +90,95 @@ export default Component.extend({
   showFullTitle: not("responsive"),
   eventsBelow: alias("responsive"),
 
-  @discourseComputed("responsive")
-  todayLabel(responsive) {
+  todayLabel: computed("responsive", function() {
+    const responsive = this.responsive;
     return responsive ? null : "events_calendar.today";
-  },
+  }),
 
-  @discourseComputed
-  months() {
-    return moment
-      .localeData()
-      .months()
-      .map((m, i) => {
-        return { id: i, name: m };
-      });
-  },
+  months: computed(function() {
+    return moment.localeData().months().map((m, i) => {
+      return { id: i, name: m };
+    });
+  }),
 
-  @discourseComputed("currentDate", "currentMonth", "currentYear", "topics.[]")
-  dateEvents(currentDate, currentMonth, currentYear, topics) {
+  dateEvents: computed("currentDate", "currentMonth", "currentYear", "topics.[]", function() {
+    const currentDate = this.currentDate;
+    const currentMonth = this.currentMonth;
+    const currentYear = this.currentYear;
+    const topics = this.topics;
     const day = moment().year(currentYear).month(currentMonth);
     return eventsForDay(day.date(currentDate), topics, {
       dateEvents: true,
       siteSettings: this.siteSettings,
     });
-  },
+  }),
 
-  @discourseComputed("currentMonth", "currentYear")
-  days(currentMonth, currentYear) {
+  days: computed("currentMonth", "currentYear", function() {
+    const currentMonth = this.currentMonth;
+    const currentYear = this.currentYear;
     const { start, end } = calendarDays(currentMonth, currentYear);
     let days = [];
     for (let day = moment(start); day.isBefore(end); day.add(1, "days")) {
       days.push(moment().year(day.year()).month(day.month()).date(day.date()));
     }
     return days;
-  },
+  }),
 
-  @discourseComputed("category")
-  showSubscription() {
-    return true; // !category || !category.read_restricted;
-  },
+  showSubscription: computed(function() {
+    return true; // !this.category || !this.category.read_restricted;
+  }),
 
   transitionToMonth(month, year) {
     const { start, end } = calendarRange(month, year);
-    const router = this.get("routing.router");
+    const router = this.routing.router;
 
-    if (this.get("loading")) {
+    if (this.loading) {
       return;
     }
     this.set("loading", true);
 
-    return router
-      .transitionTo({
-        queryParams: { start, end },
-      })
-      .then(() => {
-        const category = this.get("category");
-        let filter = "";
+    return router.transitionTo({
+      queryParams: { start, end },
+    }).then(() => {
+      const category = this.category;
+      let filter = "";
 
-        if (category) {
-          filter += `c/${Category.slugFor(category)}/l/`;
+      if (category) {
+        filter += `c/${Category.slugFor(category)}/l/`;
+      }
+      filter += "calendar";
+
+      this.store.findFiltered("topicList", {
+        filter,
+        params: { start, end },
+      }).then((list) => {
+        if (this.isDestroyed) {
+          return;
         }
-        filter += "calendar";
 
-        this.store
-          .findFiltered("topicList", {
-            filter,
-            params: { start, end },
-          })
-          .then((list) => {
-            if (this._state === "destroying") {
-              return;
-            }
-
-            this.setProperties({
-              topics: list.topics,
-              currentMonth: month,
-              currentYear: year,
-              loading: false,
-            });
-          });
+        this.setProperties({
+          topics: list.topics,
+          currentMonth: month,
+          currentYear: year,
+          loading: false,
+        });
       });
+    });
   },
 
-  @observes("month", "year")
-  getNewTopics() {
-    const currentMonth = this.get("currentMonth");
-    const currentYear = this.get("currentYear");
-    const month = this.get("month");
-    const year = this.get("year");
+  getNewTopics: computed("month", "year", function() {
+    const currentMonth = this.currentMonth;
+    const currentYear = this.currentYear;
+    const month = this.month;
+    const year = this.year;
     if (currentMonth !== month || currentYear !== year) {
       this.transitionToMonth(month, year);
     }
-  },
+  }),
 
   actions: {
     selectDate(selectedDate, selectedMonth) {
-      const month = this.get("month");
+      const month = this.month;
       if (month !== selectedMonth) {
         this.set("month", selectedMonth);
       }
@@ -211,8 +194,8 @@ export default Component.extend({
     },
 
     monthPrevious() {
-      let currentMonth = this.get("currentMonth");
-      let year = this.get("currentYear");
+      let currentMonth = this.currentMonth;
+      let year = this.currentYear;
       let month;
 
       if (currentMonth === 0) {
@@ -226,8 +209,8 @@ export default Component.extend({
     },
 
     monthNext() {
-      let currentMonth = this.get("currentMonth");
-      let year = this.get("currentYear");
+      let currentMonth = this.currentMonth;
+      let year = this.currentYear;
       let month;
 
       if (currentMonth === 11) {

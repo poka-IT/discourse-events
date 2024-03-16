@@ -1,14 +1,14 @@
 import EmberObject from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import discourseComputed from "discourse-common/utils/decorators";
 import Site from "discourse/models/site";
 
 const Connection = EmberObject.extend({
-  @discourseComputed("category_id")
-  category(categoryId) {
+  category: function(categoryId) {
     const categories = Site.current().categoriesList;
-    return categories.find((c) => c.id === categoryId);
+    return categories.find(function(c) {
+      return c.id === categoryId;
+    });
   },
 });
 

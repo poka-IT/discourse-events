@@ -1,50 +1,46 @@
 import showModal from "discourse/lib/show-modal";
 import { eventLabel } from "../lib/date-utilities";
-import { default as discourseComputed } from "discourse-common/utils/decorators";
-import Component from "@ember/component";
+import computed from "@ember/object";
 
-export default Component.extend({
-  classNames: ["event-label"],
+class AddEventControlsComponent {
+  constructor() {
+    this.classNames = ["event-label"];
 
-  didInsertElement() {
-    $(".title-and-category").toggleClass(
-      "event-add-no-text",
-      this.get("iconOnly")
-    );
-  },
+    this.didInsertElement = function () {
+      $(".title-and-category").toggleClass(
+        "event-add-no-text",
+        this.iconOnly
+      );
+    };
 
-  @discourseComputed("noText")
-  valueClasses(noText) {
-    let classes = "add-event";
-    if (noText) {
-      classes += " btn-primary";
-    }
-    return classes;
-  },
-
-  @discourseComputed("event")
-  valueLabel(event) {
-    return eventLabel(event, {
-      noText: this.get("noText"),
-      useEventTimezone: true,
-      showRsvp: true,
-      siteSettings: this.siteSettings,
+    this.valueClasses = computed("noText", function () {
+      let classes = "add-event";
+      if (this.noText) {
+        classes += " btn-primary";
+      }
+      return classes;
     });
-  },
 
-  @discourseComputed("category", "noText")
-  iconOnly(category, noText) {
-    return (
-      noText ||
-      this.siteSettings.events_event_label_no_text ||
-      Boolean(
-        category && category.get("custom_fields.events_event_label_no_text")
-      )
-    );
-  },
+    this.valueLabel = computed("event", function () {
+      return eventLabel(this.event, {
+        noText: this.noText,
+        useEventTimezone: true,
+        showRsvp: true,
+        siteSettings: this.siteSettings,
+      });
+    });
 
-  actions: {
-    showAddEvent() {
+    this.iconOnly = computed("category", "noText", function () {
+      return (
+        this.noText ||
+        this.siteSettings.events_event_label_no_text ||
+        Boolean(
+          this.category && this.category.get("custom_fields.events_event_label_no_text")
+        )
+      );
+    });
+
+    this.showAddEvent = function () {
       showModal("add-event", {
         model: {
           bufferedEvent: this.event,
@@ -54,10 +50,12 @@ export default Component.extend({
           },
         },
       });
-    },
+    };
 
-    removeEvent() {
+    this.removeEvent = function () {
       this.set("event", null);
-    },
-  },
-});
+    };
+  }
+}
+
+export default AddEventControlsComponent;

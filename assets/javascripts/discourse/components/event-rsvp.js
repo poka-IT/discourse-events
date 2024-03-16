@@ -1,15 +1,15 @@
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import { default as discourseComputed } from "discourse-common/utils/decorators";
-import showModal from "discourse/lib/show-modal";
-import { ajax } from "discourse/lib/ajax";
+import { inject as service } from "@ember/service";
+import { action, computed } from "@ember/object";
 import Component from "@ember/component";
-import { equal, gt, notEmpty } from "@ember/object/computed";
+import { equal } from "@ember/object/computed";
 import I18n from "I18n";
-import { action } from "@ember/object";
 
-export default Component.extend({
-  classNames: "event-rsvp",
-  goingSaving: false,
+export default class EventRsvpComponent extends Component {
+  @service modal;
+
+  classNames = "event-rsvp";
+  goingSaving = false;
 
   didReceiveAttrs() {
     const currentUser = this.currentUser;
@@ -22,35 +22,33 @@ export default Component.extend({
         eventGoing &&
         eventGoing.indexOf(currentUser.username) > -1,
     });
-  },
+  }
 
-  @discourseComputed("userGoing")
-  goingClasses(userGoing) {
-    return userGoing ? "btn-primary" : "";
-  },
+  @computed("userGoing")
+  get goingClasses() {
+    return this.userGoing ? "btn-primary" : "";
+  }
 
-  @discourseComputed("currentUser", "eventFull")
-  canGo(currentUser, eventFull) {
-    return currentUser && !eventFull;
-  },
+  @computed("currentUser", "eventFull")
+  get canGo() {
+    return this.currentUser && !this.eventFull;
+  }
 
-  hasGuests: gt("goingTotal", 0),
-  hasMax: notEmpty("topic.event.going_max"),
+  @computed("goingTotal", "topic.event.going_max")
+  get spotsLeft() {
+    return Number(this.topic.event.going_max) - Number(this.goingTotal);
+  }
 
-  @discourseComputed("goingTotal", "topic.event.going_max")
-  spotsLeft(goingTotal, goingMax) {
-    return Number(goingMax) - Number(goingTotal);
-  },
+  @equal("spotsLeft", 0)
+  eventFull;
 
-  eventFull: equal("spotsLeft", 0),
-
-  @discourseComputed("hasMax", "eventFull")
-  goingMessage(hasMax, full) {
-    if (hasMax) {
-      if (full) {
+  @computed("hasMax", "eventFull")
+  get goingMessage() {
+    if (this.hasMax) {
+      if (this.eventFull) {
         return I18n.t("event_rsvp.going.max_reached");
       } else {
-        const spotsLeft = this.get("spotsLeft");
+        const spotsLeft = this.spotsLeft;
 
         if (spotsLeft === 1) {
           return I18n.t("event_rsvp.going.one_spot_left");
@@ -61,10 +59,10 @@ export default Component.extend({
     }
 
     return false;
-  },
+  }
 
   updateTopic(userName, _action, type) {
-    let existing = this.get(`topic.event.${type}`);
+    let existing = this.topic.event[type];
     let list = existing ? existing : [];
     let userGoing = _action === "add";
 
@@ -80,7 +78,7 @@ export default Component.extend({
     };
     props[`topic.event.${type}`] = list;
     this.setProperties(props);
-  },
+  }
 
   save(user, _action, type) {
     this.set(`${type}Saving`, true);
@@ -88,7 +86,7 @@ export default Component.extend({
     ajax(`/discourse-events/rsvp/${_action}`, {
       type: "POST",
       data: {
-        topic_id: this.get("topic.id"),
+        topic_id: this.topic.id,
         type,
         usernames: [user.username],
       },
@@ -102,26 +100,25 @@ export default Component.extend({
       .finally(() => {
         this.set(`${type}Saving`, false);
       });
-  },
+  }
 
   @action
-  openModal() {
+  openModal(event) {
     event?.preventDefault();
-    showModal("event-rsvp", {
+    this.modal.show("event-rsvp", {
       model: {
-        topic: this.get("topic"),
+        topic: this.topic,
       },
     });
-  },
+  }
 
-  actions: {
-    going() {
-      const currentUser = this.get("currentUser");
-      const userGoing = this.get("userGoing");
+  @action
+  going() {
+    const currentUser = this.currentUser;
+    const userGoing = this.userGoing;
 
-      let _action = userGoing ? "remove" : "add";
+    let _action = userGoing ? "remove" : "add";
 
-      this.save(currentUser, _action, "going");
-    },
-  },
-});
+    this.save(currentUser, _action, "going");
+  }
+}

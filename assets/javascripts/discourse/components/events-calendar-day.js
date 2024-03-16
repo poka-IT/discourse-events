@@ -1,74 +1,69 @@
-import {
-  default as discourseComputed,
-  observes,
-  on,
-} from "discourse-common/utils/decorators";
-import { eventsForDay } from "../lib/date-utilities";
+import Component from "@glimmer/component";
+import { action, computed } from "@ember/object";
 import { gt } from "@ember/object/computed";
 import { bind } from "@ember/runloop";
-import Component from "@ember/component";
 import { htmlSafe } from "@ember/template";
+import { eventsForDay } from "../lib/date-utilities";
 
 const MAX_EVENTS = 4;
 
-export default Component.extend({
-  classNameBindings: [":day", "classes", "differentMonth"],
-  attributeBindings: ["day:data-day"],
-  hidden: 0,
-  hasHidden: gt("hidden", 0),
+export default class EventsCalendarDay extends Component {
+  classNameBindings = [":day", "classes", "differentMonth"];
+  attributeBindings = ["day:data-day"];
+  hidden = 0;
+  hasHidden = gt("hidden", 0);
 
-  @discourseComputed("date", "month", "expandedDate")
-  expanded(date, month, expandedDate) {
-    return `${month}.${date}` === expandedDate;
-  },
+  @computed("date", "month", "expandedDate")
+  get expanded() {
+    return `${this.month}.${this.date}` === this.expandedDate;
+  }
 
-  @discourseComputed("month", "currentMonth")
-  differentMonth(month, currentMonth) {
-    return month !== currentMonth;
-  },
+  @computed("month", "currentMonth")
+  get differentMonth() {
+    return this.month !== this.currentMonth;
+  }
 
-  @on("init")
-  @observes("expanded")
+  @action
   setEvents() {
-    const expanded = this.get("expanded");
-    const allEvents = this.get("allEvents");
+    const expanded = this.expanded;
+    const allEvents = this.allEvents;
     let events = $.extend([], allEvents);
 
     if (events.length && !expanded) {
       let hidden = events.splice(MAX_EVENTS);
 
       if (hidden.length) {
-        this.set("hidden", hidden.length);
+        this.hidden = hidden.length;
       }
     } else {
-      this.set("hidden", 0);
+      this.hidden = 0;
     }
 
-    this.set("events", events);
-  },
+    this.events = events;
+  }
 
-  @discourseComputed("day", "topics.[]", "expanded", "rowIndex")
-  allEvents(day, topics, expanded, rowIndex) {
-    return eventsForDay(day, topics, {
-      rowIndex,
-      expanded,
+  @computed("day", "topics.[]", "expanded", "rowIndex")
+  get allEvents() {
+    return eventsForDay(this.day, this.topics, {
+      rowIndex: this.rowIndex,
+      expanded: this.expanded,
       siteSettings: this.siteSettings,
     });
-  },
+  }
 
-  @discourseComputed("index")
-  rowIndex(index) {
-    return index % 7;
-  },
+  @computed("index")
+  get rowIndex() {
+    return this.index % 7;
+  }
 
   didInsertElement() {
-    this.set("clickHandler", bind(this, this.documentClick));
-    $(document).on("click", this.get("clickHandler"));
-  },
+    this.clickHandler = bind(this, this.documentClick);
+    $(document).on("click", this.clickHandler);
+  }
 
   willDestroyElement() {
-    $(document).off("click", this.get("clickHandler"));
-  },
+    $(document).off("click", this.clickHandler);
+  }
 
   documentClick(event) {
     if (
@@ -80,64 +75,58 @@ export default Component.extend({
     } else {
       this.click();
     }
-  },
+  }
 
   clickOutside() {
-    if (this.get("expanded")) {
-      this.get("setExpandedDate")(null);
+    if (this.expanded) {
+      this.setExpandedDate(null);
     }
-  },
+  }
 
   click() {
-    const canSelectDate = this.get("canSelectDate");
+    const canSelectDate = this.canSelectDate;
     if (canSelectDate) {
-      const date = this.get("date");
-      const month = this.get("month");
+      const date = this.date;
+      const month = this.month;
       this.selectDate(date, month);
     }
-  },
+  }
 
-  @discourseComputed("index")
-  date() {
-    const day = this.get("day");
+  @computed("index")
+  get date() {
+    const day = this.day;
     return day.date();
-  },
+  }
 
-  @discourseComputed("index")
-  month() {
-    const day = this.get("day");
+  @computed("index")
+  get month() {
+    const day = this.day;
     return day.month();
-  },
+  }
 
-  @discourseComputed(
-    "day",
-    "currentDate",
-    "currentMonth",
-    "expanded",
-    "responsive"
-  )
-  classes(day, currentDate, currentMonth, expanded, responsive) {
+  @computed("day", "currentDate", "currentMonth", "expanded", "responsive")
+  get classes() {
     let classes = "";
-    if (day.isSame(moment(), "day")) {
+    if (this.day.isSame(moment(), "day")) {
       classes += "today ";
     }
     if (
-      responsive &&
-      day.isSame(moment().month(currentMonth).date(currentDate), "day")
+      this.responsive &&
+      this.day.isSame(moment().month(this.currentMonth).date(this.currentDate), "day")
     ) {
       classes += "selected ";
     }
-    if (expanded) {
+    if (this.expanded) {
       classes += "expanded";
     }
     return classes;
-  },
+  }
 
-  @discourseComputed("expanded")
-  containerStyle(expanded) {
+  @computed("expanded")
+  get containerStyle() {
     let style = "";
 
-    if (expanded) {
+    if (this.expanded) {
       const offsetLeft = this.element.offsetLeft;
       const offsetTop = this.element.offsetTop;
       const windowWidth = $(window).width();
@@ -157,5 +146,5 @@ export default Component.extend({
     }
 
     return htmlSafe(style);
-  },
-});
+  }
+}

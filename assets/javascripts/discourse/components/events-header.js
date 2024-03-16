@@ -1,12 +1,13 @@
-import Component from "@ember/component";
+import Component from "@glimmer/component";
+import { tracked } from "@glimmer/tracking";
+import { action } from "@ember/object";
 import I18n from "I18n";
-import discourseComputed from "discourse-common/utils/decorators";
 
-export default Component.extend({
-  classNames: ["events-header"],
+export default class EventsHeaderComponent extends Component {
+    @tracked view;
+    classNames = ["events-header"];
 
-  @discourseComputed("view")
-  title(view) {
-    return I18n.t(`admin.events.${view}.title`);
-  },
-});
+    get title() {
+        return I18n.t(`admin.events.${this.args.view}.title`);
+    }
+}

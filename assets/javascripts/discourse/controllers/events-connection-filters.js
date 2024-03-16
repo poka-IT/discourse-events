@@ -1,8 +1,7 @@
-import Controller from "@ember/controller";
-import ModalFunctionality from "discourse/mixins/modal-functionality";
-import discourseComputed from "discourse-common/utils/decorators";
+import Component from "@ember/component";
 import ConnectionFilter from "../models/connection-filter";
-import { A } from "@ember/array";
+import { action } from "@ember/object";
+import { tracked } from "@glimmer/tracking";
 
 const QUERY_COLUMNS = [
   {
@@ -11,26 +10,24 @@ const QUERY_COLUMNS = [
   },
 ];
 
-export default Controller.extend(ModalFunctionality, {
-  @discourseComputed
-  queryColumns() {
-    return QUERY_COLUMNS;
-  },
+export default class EventsConnectionFiltersComponent extends Component {
+  @tracked queryColumns = QUERY_COLUMNS;
 
-  onShow() {
+  constructor() {
+    super(...arguments);
     if (!this.model.connection.filters) {
-      this.model.connection.set("filters", A());
+      this.model.connection.filters = [];
     }
-  },
+  }
 
-  actions: {
-    addFilter() {
-      const filter = ConnectionFilter.create({ id: "new" });
-      this.model.connection.get("filters").pushObject(filter);
-    },
+  @action
+  addFilter() {
+    const filter = ConnectionFilter.create({ id: "new" });
+    this.model.connection.filters.pushObject(filter);
+  }
 
-    removeFilter(filter) {
-      this.model.connection.get("filters").removeObject(filter);
-    },
-  },
-});
+  @action
+  removeFilter(filter) {
+    this.model.connection.filters.removeObject(filter);
+  }
+}

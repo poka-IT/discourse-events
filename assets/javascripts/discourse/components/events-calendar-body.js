@@ -1,45 +1,47 @@
-import {
-  default as discourseComputed,
-  observes,
-  on,
-} from "discourse-common/utils/decorators";
-import { firstDayOfWeek } from "../lib/date-utilities";
 import Component from "@ember/component";
-import I18n from "I18n";
+import { inject as service } from "@ember/service";
+import { action } from "@ember/object";
+import { firstDayOfWeek } from "../lib/date-utilities";
 
-export default Component.extend({
-  classNames: "events-calendar-body",
-  expandedDate: 0.0,
+export default class EventsCalendarBodyComponent extends Component {
+  @service i18n;
+  @service modal;
 
-  @on("init")
-  setup() {
-    this._super();
-    moment.locale(I18n.locale);
-  },
+  classNames = "events-calendar-body";
+  expandedDate = 0.0;
 
-  @discourseComputed("responsive")
-  weekdays(responsive) {
+  constructor() {
+    super(...arguments);
+    moment.locale(this.i18n.locale);
+  }
+
+  get weekdays() {
     let data = moment.localeData();
-    let weekdays = $.extend(
-      [],
-      responsive ? data.weekdaysMin() : data.weekdays()
-    );
+    let weekdays = [...(this.responsive ? data.weekdaysMin() : data.weekdays())];
     let firstDay = firstDayOfWeek();
     let beforeFirst = weekdays.splice(0, firstDay);
     weekdays.push(...beforeFirst);
     return weekdays;
-  },
+  }
 
-  @observes("currentMonth")
+  @action
   resetExpandedDate() {
-    this.set("expandedDate", null);
-  },
+    this.expandedDate = null;
+  }
 
-  actions: {
-    setExpandedDate(date) {
-      event?.preventDefault();
-      const month = this.get("currentMonth");
-      this.set("expandedDate", month + "." + date);
-    },
-  },
-});
+  @action
+  setExpandedDate(date) {
+    event?.preventDefault();
+    const month = this.currentMonth;
+    this.expandedDate = `${month}.${date}`;
+  }
+
+  @action
+  showModal() {
+    this.modal.show("events-calendar-modal", {
+      title: "My Modal Title",
+      modalClass: "my-modal-class",
+      model: { topic: this.topic },
+    });
+  }
+}

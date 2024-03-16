@@ -1,62 +1,62 @@
-import Controller from "@ember/controller";
-import ModalFunctionality from "discourse/mixins/modal-functionality";
-import discourseComputed from "discourse-common/utils/decorators";
+import Component from "@ember/component";
 import Event from "../models/event";
 import I18n from "I18n";
+import { action } from "@ember/object";
+import { tracked } from "@glimmer/tracking";
 
 const DELETE_TARGETS = ["events_only", "events_and_topics", "topics_only"];
 
-export default Controller.extend(ModalFunctionality, {
-  deleteTargets: DELETE_TARGETS.map((t) => ({
+export default class ConfirmEventDeletionComponent extends Component {
+  deleteTargets = DELETE_TARGETS.map((t) => ({
     id: t,
     name: I18n.t(`admin.events.event.delete.${t}`),
-  })),
-  deleteTarget: "events_only",
+  }));
 
-  @discourseComputed("model.events")
-  eventCount(events) {
-    return events.length;
-  },
+  @tracked deleteTarget = "events_only";
+  @tracked destroying = false;
 
-  @discourseComputed("deleteTarget")
-  btnLabel(deleteTarget) {
-    return `admin.events.event.delete.${deleteTarget}_btn`;
-  },
+  get eventCount() {
+    return this.model.events.length;
+  }
 
-  actions: {
-    delete() {
-      const events = this.model.events;
-      const eventIds = events.map((e) => e.id);
-      const target = this.deleteTarget;
+  get btnLabel() {
+    return `admin.events.event.delete.${this.deleteTarget}_btn`;
+  }
 
-      const opts = {
-        event_ids: eventIds,
-        target,
-      };
+  @action
+  delete() {
+    const events = this.model.events;
+    const eventIds = events.map((e) => e.id);
+    const target = this.deleteTarget;
 
-      this.set("destroying", true);
+    const opts = {
+      event_ids: eventIds,
+      target,
+    };
 
-      Event.destroy(opts)
-        .then((result) => {
-          if (result.success) {
-            this.onDestroyEvents(
-              events.filter((e) => result.destroyed_event_ids.includes(e.id)),
-              events.filter((e) =>
-                result.destroyed_topics_event_ids.includes(e.id)
-              )
-            );
-            this.onCloseModal();
-            this.send("closeModal");
-          } else {
-            this.set("model.error", result.error);
-          }
-        })
-        .finally(() => this.set("destroying", false));
-    },
+    this.destroying = true;
 
-    cancel() {
-      this.onCloseModal();
-      this.send("closeModal");
-    },
-  },
-});
+    Event.destroy(opts)
+      .then((result) => {
+        if (result.success) {
+          this.onDestroyEvents(
+            events.filter((e) => result.destroyed_event_ids.includes(e.id)),
+            events.filter((e) =>
+              result.destroyed_topics_event_ids.includes(e.id)
+            )
+          );
+          this.onCloseModal();
+          this.send("closeModal");
+        } else {
+          this.model.error = result.error;
+        }
+      })
+      .finally(() => (this.destroying = false));
+  }
+
+  @action
+  cancel() {
+    this.onCloseModal();
+    this.send("closeModal");
+  }
+}

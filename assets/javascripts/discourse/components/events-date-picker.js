@@ -1,20 +1,27 @@
-import DatePicker from "discourse/components/date-picker";
+import { inject as service } from "@ember/service";
 import { observes, on } from "discourse-common/utils/decorators";
 import loadScript from "discourse/lib/load-script";
 import { firstDayOfWeek } from "../lib/date-utilities";
 import { next } from "@ember/runloop";
 import I18n from "I18n";
 import { deepMerge } from "discourse-common/lib/object";
+import MyModal from "discourse/components/my-modal";
+import { action } from "@ember/object";
+import Component from "@ember/component";
 
-export default DatePicker.extend({
-  layoutName: "components/date-picker",
+export default class EventsDatePicker extends Component {
+  @service modal;
+
+  layoutName = "components/date-picker";
+
+  flash = null;
 
   @observes("value")
   setDate() {
     if (this._picker && this.value) {
       this._picker.setDate(this.value);
     }
-  },
+  }
 
   @on("didInsertElement")
   _loadDatePicker() {
@@ -54,5 +61,12 @@ export default DatePicker.extend({
         this._picker = new Pikaday(deepMerge(default_opts, this._opts())); // eslint-disable-line no-undef
       });
     });
-  },
-});
+  }
+
+  @action
+  showMyModal() {
+    this.modal.show(MyModal, {
+      model: { value: this.value },
+    });
+  }
+}

@@ -1,37 +1,43 @@
 import Component from "@ember/component";
-import { observes } from "discourse-common/utils/decorators";
+import { inject as service } from "@ember/service";
+import { action } from "@ember/object";
 
-export default Component.extend({
-  tagName: "tr",
-  classNameBindings: [":events-event-row", "showSelect", "selected"],
-  selected: false,
+export default class EventsEventRowComponent extends Component {
+  @service modal;
 
-  @observes("showSelect")
+  tagName = "tr";
+  classNameBindings = [":events-event-row", "showSelect", "selected"];
+  selected = false;
+
+  @action
   toggleWhenShowSelect() {
     if (!this.showSelect) {
       this.set("selected", false);
     }
-  },
+  }
 
-  @observes("selectAll")
+  @action
   toggleWhenSelectAll() {
     this.set("selected", this.selectAll);
-  },
+  }
 
+  @action
   click() {
     if (this.showSelect) {
       this.selectEvent();
     }
-  },
+  }
 
+  @action
   selectEvent() {
     this.toggleProperty("selected");
     this.modifySelection([this.event], this.selected);
-  },
+  }
 
-  actions: {
-    selectEvent() {
-      this.selectEvent();
-    },
-  },
-});
+  @action
+  showModal() {
+    this.modal.show(MyModal, {
+      model: { event: this.event, modifySelection: this.modifySelection },
+    });
+  }
+}

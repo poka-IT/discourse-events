@@ -1,15 +1,19 @@
 import DiscourseURL from "discourse/lib/url";
 import { cook } from "discourse/lib/text";
-import { on } from "discourse-common/utils/decorators";
 import { bind, next, scheduleOnce } from "@ember/runloop";
 import Component from "@ember/component";
-import { action } from "@ember/object";
+import { inject as service } from "@ember/service";
 
 export default Component.extend({
   classNames: "events-calendar-card",
   attributeBindings: ["topic.id:data-topic-id"],
+  modal: service(),
 
-  @on("init")
+  init() {
+    this._super(...arguments);
+    this.setup();
+  },
+
   setup() {
     const excerpt = this.get("topic.excerpt");
     const title = this.get("topic.title");
@@ -78,16 +82,20 @@ export default Component.extend({
     this.close();
   },
 
-  @action
-  close() {
-    event?.preventDefault();
+  close(event) {
+    event.preventDefault();
     this.selectEvent();
   },
 
-  @action
-  goToTopic() {
-    event?.preventDefault();
+  goToTopic(event) {
+    event.preventDefault();
     const url = this.get("topic.url");
     DiscourseURL.routeTo(url);
+  },
+
+  showMyModal() {
+    this.modal.show(MyModal, {
+      model: { topic: this.topic, updateTopic: this.updateTopic },
+    });
   },
 });

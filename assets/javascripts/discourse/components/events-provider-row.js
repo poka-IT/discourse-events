@@ -1,123 +1,101 @@
-import Component from "@ember/component";
+import Component from "@glimmer/component";
+import { tracked } from "@glimmer/tracking";
+import { action } from "@ember/object";
 import Provider from "../models/provider";
-import discourseComputed from "discourse-common/utils/decorators";
 import { contentsMap } from "../lib/events";
-import { or } from "@ember/object/computed";
 
 const TOKEN_TYPES = ["eventbrite", "humanitix", "eventzilla"];
-
 const NO_AUTH_TYPES = ["icalendar"];
-
 const OAUTH2_TYPES = ["meetup"];
-
 const PROVIDER_TYPES = [...NO_AUTH_TYPES, ...TOKEN_TYPES, ...OAUTH2_TYPES];
 
-export default Component.extend({
-  tagName: "tr",
-  classNames: ["events-provider-row"],
-  attributeBindings: ["provider.id:data-provider-id"],
-  hideCredentials: true,
-  hasSecretCredentials: or("showToken", "showClientCredentials"),
+export default class EventsProviderRowComponent extends Component {
+  tagName = "tr";
+  classNames = ["events-provider-row"];
+  attributeBindings = ["provider.id:data-provider-id"];
+  @tracked hideCredentials = true;
 
-  didReceiveAttrs() {
-    this.set("currentProvider", JSON.parse(JSON.stringify(this.provider)));
-  },
+  constructor() {
+    super(...arguments);
+    this.currentProvider = JSON.parse(JSON.stringify(this.args.provider));
+  }
 
-  @discourseComputed(
-    "provider.name",
-    "provider.url",
-    "provider.provider_type",
-    "provider.url"
-  )
-  providerChanged(name, url, type) {
+  get hasSecretCredentials() {
+    return this.showToken || this.showClientCredentials;
+  }
+
+  get providerChanged() {
     const cp = this.currentProvider;
-    return cp.name !== name || cp.url !== url || cp.provider_type !== type;
-  },
+    return cp.name !== this.args.provider.name || cp.url !== this.args.provider.url || cp.provider_type !== this.args.provider.provider_type;
+  }
 
-  @discourseComputed("providerChanged")
-  saveDisabled(providerChanged) {
-    return !providerChanged;
-  },
+  get saveDisabled() {
+    return !this.providerChanged;
+  }
 
-  @discourseComputed("providerChanged")
-  saveClass(providerChanged) {
-    return providerChanged ? "save-provider btn-primary" : "save-provider";
-  },
+  get saveClass() {
+    return this.providerChanged ? "save-provider btn-primary" : "save-provider";
+  }
 
-  @discourseComputed
-  providerTypes() {
+  get providerTypes() {
     return contentsMap(PROVIDER_TYPES);
-  },
+  }
 
-  @discourseComputed(
-    "canAuthenicate",
-    "providerChanged",
-    "provider.authenticated"
-  )
-  authenticateDisabled(canAuthenicate, providerChanged, providerAuthenticated) {
-    return !canAuthenicate || providerChanged || providerAuthenticated;
-  },
+  get authenticateDisabled() {
+    return !this.canAuthenicate || this.providerChanged || this.args.provider.authenticated;
+  }
 
-  @discourseComputed("authenticateDisabled")
-  authenticateClass(authenticateDisabled) {
-    return authenticateDisabled ? "" : "btn-primary";
-  },
+  get authenticateClass() {
+    return this.authenticateDisabled ? "" : "btn-primary";
+  }
 
-  @discourseComputed("provider.provider_type")
-  canAuthenicate(providerType) {
-    return providerType && OAUTH2_TYPES.includes(providerType);
-  },
+  get canAuthenicate() {
+    return this.args.provider.provider_type && OAUTH2_TYPES.includes(this.args.provider.provider_type);
+  }
 
-  @discourseComputed("provider.provider_type")
-  showToken(providerType) {
-    return providerType && TOKEN_TYPES.includes(providerType);
-  },
+  get showToken() {
+    return this.args.provider.provider_type && TOKEN_TYPES.includes(this.args.provider.provider_type);
+  }
 
-  @discourseComputed("provider.provider_type")
-  showNoAuth(providerType) {
-    return !providerType || NO_AUTH_TYPES.includes(providerType);
-  },
+  get showNoAuth() {
+    return !this.args.provider.provider_type || NO_AUTH_TYPES.includes(this.args.provider.provider_type);
+  }
 
-  @discourseComputed("provider.provider_type")
-  showClientCredentials(providerType) {
-    return providerType && OAUTH2_TYPES.includes(providerType);
-  },
+  get showClientCredentials() {
+    return this.args.provider.provider_type && OAUTH2_TYPES.includes(this.args.provider.provider_type);
+  }
 
-  actions: {
-    toggleHideCredentials() {
-      this.toggleProperty("hideCredentials");
-    },
+  @action
+  toggleHideCredentials() {
+    this.hideCredentials = !this.hideCredentials;
+  }
 
-    saveProvider() {
-      const provider = JSON.parse(JSON.stringify(this.provider));
+  @action
+  async saveProvider() {
+    const provider = JSON.parse(JSON.stringify(this.args.provider));
 
-      if (!provider.name) {
-        return;
+    if (!provider.name) {
+      return;
+    }
+
+    this.saving = true;
+
+    try {
+      const result = await Provider.update(provider);
+
+      if (result) {
+        this.currentProvider = result.provider;
+        this.args.provider = Provider.create(result.provider);
+      } else if (this.currentSource.id !== "new") {
+        this.args.provider = JSON.parse(JSON.stringify(this.currentProvider));
       }
+    } finally {
+      this.saving = false;
+    }
+  }
 
-      this.set("saving", true);
-
-      Provider.update(provider)
-        .then((result) => {
-          if (result) {
-            this.setProperties({
-              currentProvider: result.provider,
-              provider: Provider.create(result.provider),
-            });
-          } else if (this.currentSource.id !== "new") {
-            this.set(
-              "provider",
-              JSON.parse(JSON.stringify(this.currentProvider))
-            );
-          }
-        })
-        .finally(() => {
-          this.set("saving", false);
-        });
-    },
-
-    authenticateProvider() {
-      window.location.href = `/admin/events/provider/${this.provider.id}/authorize`;
-    },
-  },
-});
+  @action
+  authenticateProvider() {
+    window.location.href = `/admin/events/provider/${this.args.provider.id}/authorize`;
+  }
+}

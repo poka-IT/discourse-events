@@ -1,6 +1,5 @@
-import discourseComputed from "discourse-common/utils/decorators";
-import { not, notEmpty } from "@ember/object/computed";
-import Component from "@ember/component";
+import Component from "@glimmer/component";
+import { tracked } from "@glimmer/tracking";
 import I18n from "I18n";
 
 const icons = {
@@ -18,31 +17,35 @@ const urls = {
   log: "https://discourse.pluginmanager.org/t/543",
 };
 
-export default Component.extend({
-  classNameBindings: [":events-message", "message.type", "loading"],
-  showDocumentation: not("loading"),
-  showIcon: not("loading"),
-  hasItems: notEmpty("items"),
+export default class EventsMessageComponent extends Component {
+  @tracked loading = false;
+  classNameBindings = [":events-message", "message.type", "loading"];
 
-  @discourseComputed("message.type")
-  icon(type) {
-    return icons[type] || "info-circle";
-  },
+  get showDocumentation() {
+    return !this.loading;
+  }
 
-  @discourseComputed("message.key", "view", "message.opts")
-  text(key, view, opts) {
-    return I18n.t(`admin.events.message.${view}.${key}`, opts || {});
-  },
+  get showIcon() {
+    return !this.loading;
+  }
 
-  @discourseComputed
-  documentation() {
+  get hasItems() {
+    return this.args.items && this.args.items.length > 0;
+  }
+
+  get icon() {
+    return icons[this.args.message.type] || "info-circle";
+  }
+
+  get text() {
+    return I18n.t(`admin.events.message.${this.args.view}.${this.args.message.key}`, this.args.message.opts || {});
+  }
+
+  get documentation() {
     return I18n.t(`admin.events.message.documentation`);
-  },
+  }
 
-  @discourseComputed("view")
-  documentationUrl(view) {
-    return (
-      urls[view] || "https://discourse.pluginmanager.org/c/discourse-events"
-    );
-  },
-});
+  get documentationUrl() {
+    return urls[this.args.view] || "https://discourse.pluginmanager.org/c/discourse-events";
+  }
+}

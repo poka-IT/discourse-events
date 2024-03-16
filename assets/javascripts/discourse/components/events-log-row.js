@@ -1,6 +1,6 @@
-import Component from "@ember/component";
+import Component from "@glimmer/component";
 
-export default Component.extend({
-  tagName: "tr",
-  classNames: ["events-log-row"],
-});
+export default class EventsLogRowComponent extends Component {
+    tagName = "tr";
+    classNames = ["events-log-row"];
+}
