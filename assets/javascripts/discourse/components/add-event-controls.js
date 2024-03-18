@@ -1,15 +1,18 @@
-import showModal from "discourse/lib/show-modal";
 import { eventLabel } from "../lib/date-utilities";
 import { default as discourseComputed } from "discourse-common/utils/decorators";
 import Component from "@ember/component";
+import { inject as service } from "@ember/service";
+import { action } from "@ember/object";
+import AddEvent from "./add-event";
 
 export default Component.extend({
   classNames: ["event-label"],
+  modal: service(),
 
   didInsertElement() {
     $(".title-and-category").toggleClass(
       "event-add-no-text",
-      this.get("iconOnly")
+      this.iconOnly
     );
   },
 
@@ -25,7 +28,7 @@ export default Component.extend({
   @discourseComputed("event")
   valueLabel(event) {
     return eventLabel(event, {
-      noText: this.get("noText"),
+      noText: this.noText,
       useEventTimezone: true,
       showRsvp: true,
       siteSettings: this.siteSettings,
@@ -38,26 +41,26 @@ export default Component.extend({
       noText ||
       this.siteSettings.events_event_label_no_text ||
       Boolean(
-        category && category.get("custom_fields.events_event_label_no_text")
+        category && category.custom_fields.events_event_label_no_text
       )
     );
   },
 
-  actions: {
-    showAddEvent() {
-      showModal("add-event", {
-        model: {
-          bufferedEvent: this.event,
-          event: this.event,
-          update: (event) => {
-            this.set("event", event);
-          },
+  @action
+  showAddEvent() {
+    this.modal.show(AddEvent, {
+      model: {
+        bufferedEvent: this.event,
+        event: this.event,
+        update: (event) => {
+          this.set("event", event);
         },
-      });
-    },
+      },
+    });
+  },
 
-    removeEvent() {
-      this.set("event", null);
-    },
+  @action  
+  removeEvent() {
+    this.set("event", null);
   },
 });

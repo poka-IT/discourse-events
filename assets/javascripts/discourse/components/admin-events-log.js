@@ -1,8 +1,8 @@
-import Controller from "@ember/controller";
+import Component from "@ember/component";
 import { notEmpty } from "@ember/object/computed";
 import Message from "../mixins/message";
 
-export default Controller.extend(Message, {
+export default Component.extend(Message, {
   hasLogs: notEmpty("logs"),
   order: null,
   asc: null,

@@ -1,7 +1,7 @@
-{{#if canGo}}
-  <button class='btn btn-small btn-text {{goingClasses}}' {{action 'going'}} type="button">
-    {{#if goingSaving}}
-      {{loading-spinner size='small'}}
+{{#if this.canGo}}
+  <button class='btn btn-small btn-text {{this.goingClasses}}' {{on 'click' this.rsvp}} type="button">
+    {{#if this.isLoading}}
+      <LoadingSpinner @size="small"/>
     {{else}}
       {{d-icon 'check'}}
     {{/if}}
@@ -10,21 +10,54 @@
     </span>
   </button>
 {{/if}}
+
 <div class="event-rsvp-details">
-  {{#if hasGuests}}
-    {{#if currentUser}}
-      <a href {{on "click" (fn this.openModal)}}>
-        <span>{{goingTotal}}</span>
+  {{#if this.hasGuests}}
+    {{#if this.currentUser}}
+      <a href {{on "click" this.showModal}}>
+        <span>{{this.goingTotal}}</span>
         <span>{{i18n 'event_rsvp.going.label'}}</span>
       </a>
     {{else}}
-      <span>{{goingTotal}}</span>
+      <span>{{this.goingTotal}}</span>
       <span>{{i18n 'event_rsvp.going.label'}}</span>
     {{/if}}
   {{/if}}
-  {{#if goingMessage}}
+  
+  {{#if this.goingMessage}}
     <span class="going-message">
-      {{goingMessage}}
+      {{this.goingMessage}}
     </span>
   {{/if}}
 </div>
+
+<DModal @title={{i18n "event_rsvp.modal.title"}} @class="event-rsvp-modal">
+  <div class="header">
+    <ul class="types nav nav-pills">
+      <li class={{this.goingNavClass}}>
+        <a href {{on "click" (fn this.setType 'going')}}>
+          {{i18n 'event_rsvp.going.label'}}
+        </a>
+      </li>
+    </ul>
+    <Input @value={{this.filter}} placeholder={{i18n 'event_rsvp.modal.filter'}} class="filter"/>
+  </div>
+  
+  <div class="list">
+    {{#if this.loadingList}}
+      <LoadingSpinner @size="small"/>
+    {{else}}
+      <ul>
+        {{#each this.filteredList as |user|}}
+          <li>
+            <UserInfo @user={{user}}>
+              {{#if user.can_send_private_message_to_user}}
+                <DButton @class="btn compose-pm" @action={{this.composePrivateMessage}} @actionParam={{user}} @icon="envelope" @label="user.private_message"/>
+              {{/if}}
+            </UserInfo>
+          </li>
+        {{/each}}
+      </ul>
+    {{/if}}
+  </div>
+</DModal>

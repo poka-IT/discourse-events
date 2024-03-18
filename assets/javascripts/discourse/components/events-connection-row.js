@@ -1,8 +1,10 @@
 import Component from "@ember/component";
 import Connection from "../models/connection";
 import discourseComputed from "discourse-common/utils/decorators";
-import showModal from "discourse/lib/show-modal";
 import { notEmpty, readOnly } from "@ember/object/computed";
+import { action } from "@ember/object";
+import { inject as service } from "@ember/service";
+import EventsConnectionFilters from "./events-connection-filters";
 
 function filtersMatch(filters1, filters2) {
   if ((filters1 && !filters2) || (!filters1 && filters2)) {
@@ -35,6 +37,7 @@ export default Component.extend({
   ],
   hasFilters: notEmpty("connection.filters"),
   hasChildCategory: readOnly("connection.category.parent_category_id"),
+  modal: service(),
 
   didReceiveAttrs() {
     this.set("currentConnection", JSON.parse(JSON.stringify(this.connection)));
@@ -117,24 +120,27 @@ export default Component.extend({
     return classes;
   },
 
-  actions: {
-    updateUser(usernames) {
-      const connection = this.connection;
-      if (!connection.user) {
-        connection.set("user", {});
-      }
-      connection.set("user.username", usernames[0]);
-    },
 
-    openFilters() {
-      showModal("events-connection-filters", {
-        model: {
-          connection: this.get("connection"),
-        },
-      });
-    },
+  @action
+  updateUser(usernames) {
+    const connection = this.connection;
+    if (!connection.user) {
+      connection.set("user", {});
+    }
+    connection.set("user.username", usernames[0]);
+  },
 
-    saveConnection() {
+  @action
+  openFilters() {
+    this.modal.show(EventsConnectionFilters, {
+      model: {
+        connection: this.connection,
+      },
+    });
+  },
+
+  @action
+  saveConnection() {
       const connection = this.connection;
 
       if (!connection.source_id) {
@@ -174,6 +180,7 @@ export default Component.extend({
         });
     },
 
+    @action  
     syncConnection() {
       const connection = this.connection;
 
@@ -196,5 +203,4 @@ export default Component.extend({
           }, 5000);
         });
     },
-  },
 });

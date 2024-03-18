@@ -9,6 +9,7 @@
 enabled_site_setting :events_enabled
 
 register_asset 'stylesheets/common/events.scss'
+register_asset 'stylesheets/common/event-form.scss'
 register_asset 'stylesheets/common/admin.scss'
 register_asset 'stylesheets/desktop/events.scss', :desktop
 register_asset 'stylesheets/mobile/events.scss', :mobile

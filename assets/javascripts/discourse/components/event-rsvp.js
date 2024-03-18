@@ -1,127 +1,95 @@
-import { popupAjaxError } from "discourse/lib/ajax-error";
-import { default as discourseComputed } from "discourse-common/utils/decorators";
-import showModal from "discourse/lib/show-modal";
+import {
+  default as discourseComputed,
+  observes,
+} from "discourse-common/utils/decorators";
+import { getOwner } from "discourse-common/lib/get-owner";
 import { ajax } from "discourse/lib/ajax";
-import Component from "@ember/component";
-import { equal, gt, notEmpty } from "@ember/object/computed";
-import I18n from "I18n";
+import { extractError } from "discourse/lib/ajax-error";
 import { action } from "@ember/object";
+import Component from "@ember/component";
+import { inject as service } from "@ember/service";
 
 export default Component.extend({
-  classNames: "event-rsvp",
-  goingSaving: false,
+  modal: service(),
 
-  didReceiveAttrs() {
-    const currentUser = this.currentUser;
-    const eventGoing = this.topic.event.going;
+  filter: null,
+  userList: [],
+  type: "going",
 
-    this.setProperties({
-      goingTotal: eventGoing ? eventGoing.length : 0,
-      userGoing:
-        currentUser &&
-        eventGoing &&
-        eventGoing.indexOf(currentUser.username) > -1,
-    });
-  },
+  @observes("type", "model.topic")
+  setUserList() {
+    this.set("loadingList", true);
 
-  @discourseComputed("userGoing")
-  goingClasses(userGoing) {
-    return userGoing ? "btn-primary" : "";
-  },
+    const type = this.type;
+    const topic = this.model.topic;
 
-  @discourseComputed("currentUser", "eventFull")
-  canGo(currentUser, eventFull) {
-    return currentUser && !eventFull;
-  },
+    let usernames = topic.get(`event.${type}`);
 
-  hasGuests: gt("goingTotal", 0),
-  hasMax: notEmpty("topic.event.going_max"),
-
-  @discourseComputed("goingTotal", "topic.event.going_max")
-  spotsLeft(goingTotal, goingMax) {
-    return Number(goingMax) - Number(goingTotal);
-  },
-
-  eventFull: equal("spotsLeft", 0),
-
-  @discourseComputed("hasMax", "eventFull")
-  goingMessage(hasMax, full) {
-    if (hasMax) {
-      if (full) {
-        return I18n.t("event_rsvp.going.max_reached");
-      } else {
-        const spotsLeft = this.get("spotsLeft");
-
-        if (spotsLeft === 1) {
-          return I18n.t("event_rsvp.going.one_spot_left");
-        } else {
-          return I18n.t("event_rsvp.going.x_spots_left", { spotsLeft });
-        }
-      }
+    if (!usernames || !usernames.length) {
+      return;
     }
 
-    return false;
-  },
-
-  updateTopic(userName, _action, type) {
-    let existing = this.get(`topic.event.${type}`);
-    let list = existing ? existing : [];
-    let userGoing = _action === "add";
-
-    if (userGoing) {
-      list.push(userName);
-    } else {
-      list.splice(list.indexOf(userName), 1);
-    }
-
-    let props = {
-      userGoing,
-      goingTotal: list.length,
-    };
-    props[`topic.event.${type}`] = list;
-    this.setProperties(props);
-  },
-
-  save(user, _action, type) {
-    this.set(`${type}Saving`, true);
-
-    ajax(`/discourse-events/rsvp/${_action}`, {
-      type: "POST",
+    ajax("/discourse-events/rsvp/users", {
       data: {
-        topic_id: this.get("topic.id"),
-        type,
-        usernames: [user.username],
+        usernames,
       },
     })
-      .then((result) => {
-        if (result.success) {
-          this.updateTopic(user.username, _action, type);
-        }
+      .then((response) => {
+        let userList = response.users || [];
+
+        this.setProperties({
+          userList,
+          loadingList: false,
+        });
       })
-      .catch(popupAjaxError)
+      .catch((e) => {
+        this.flashMessages.add({
+          message: extractError(e),
+          type: "error",
+        });
+      })
       .finally(() => {
-        this.set(`${type}Saving`, false);
+        this.setProperties({
+          loadingList: false,
+        });
       });
   },
 
-  @action
-  openModal() {
-    event?.preventDefault();
-    showModal("event-rsvp", {
-      model: {
-        topic: this.get("topic"),
-      },
-    });
+  @discourseComputed("type")
+  goingNavClass(type) {
+    return type === "going" ? "active" : "";
   },
 
-  actions: {
-    going() {
-      const currentUser = this.get("currentUser");
-      const userGoing = this.get("userGoing");
+  @discourseComputed("userList", "filter")
+  filteredList(userList, filter) {
+    if (filter) {
+      userList = userList.filter((u) => u.username.indexOf(filter) > -1);
+    }
 
-      let _action = userGoing ? "remove" : "add";
+    const currentUser = this.currentUser;
+    if (currentUser) {
+      userList.sort((a) => {
+        if (a.username === currentUser.username) {
+          return -1;
+        } else {
+          return 1;
+        }
+      });
+    }
 
-      this.save(currentUser, _action, "going");
-    },
+    return userList;
+  },
+
+  @action
+  setType(type) {
+    event?.preventDefault();
+    this.set("type", type);
+  },
+
+  @action
+  composePrivateMessage(user) {
+    const controller = getOwner(this).lookup("controller:application");
+    this.modal.close();
+    controller.send("composePrivateMessage", user);
   },
 });

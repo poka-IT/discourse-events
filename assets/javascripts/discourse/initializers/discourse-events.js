@@ -11,6 +11,7 @@ import { CREATE_TOPIC } from "discourse/models/composer";
 import { bind, scheduleOnce } from "@ember/runloop";
 import EmberObject from "@ember/object";
 import I18n from "I18n";
+import { inject as service } from "@ember/service";
 
 export default {
   name: "events-edits",
@@ -31,6 +32,7 @@ export default {
 
       api.modifyClass("model:composer", {
         pluginId: "events",
+        modal: service(),
 
         @discourseComputed(
           "subtype",
@@ -367,32 +369,32 @@ export default {
       if (user && user.admin) {
         api.modifyClass("model:site-setting", {
           pluginId: "events",
-
+      
           @discourseComputed("valid_values")
           allowsNone() {
-            if (this.get("setting") === "events_timezone_default") {
+            if (this.setting === "events_timezone_default") {
               return "site_settings.events_timezone_default_placeholder";
             } else {
-              this._super();
+              return this._super();
             }
           },
         });
       }
-
+      
       api.modifyClass("controller:topic", {
         pluginId: "events",
-
+      
         @observes("model.id")
         subscribeDiscourseEvents() {
           this.unsubscribeDiscourseEvents();
-
+      
           this.messageBus.subscribe(
-            `/discourse-events/${this.get("model.id")}`,
+            `/discourse-events/${this.model.id}`,
             (data) => {
               if (data.current_user_id === currentUser.id) {
                 return;
               }
-
+      
               switch (data.type) {
                 case "rsvp": {
                   let prop = Object.keys(data).filter(
@@ -403,22 +405,24 @@ export default {
                     this.set(`model.${key}`, data[prop[0]]);
                     this.notifyPropertyChange(`model.${prop}`);
                   }
+                  break;
                 }
               }
             }
           );
         },
-
+      
         unsubscribeDiscourseEvents() {
           this.messageBus.unsubscribe(
-            `/discourse-events/${this.get("model.id")}`
+            `/discourse-events/${this.model.id}`
           );
         },
       });
-
+      
       api.modifyClass("controller:composer", {
         pluginId: "events",
-
+        modal: service(),
+      
         @discourseComputed(
           "model.action",
           "model.event",
@@ -434,7 +438,7 @@ export default {
             });
           }
         },
-
+      
         @observes("model.composeState")
         ensureEvent() {
           if (
@@ -446,28 +450,27 @@ export default {
             this.set("model.event", this.model.topic.event);
           }
         },
-
-        // overriding cantSubmitPost on the model is more fragile
+      
         save() {
-          if (!this.get("eventValidation")) {
+          if (!this.eventValidation) {
             this._super(...arguments);
           } else {
             this.set("lastValidatedAt", Date.now());
           }
         },
       });
-
+      
       api.includePostAttributes("connected_event", "connected_event");
-
+      
       api.addPostClassesCallback((attrs) => {
         if (attrs.post_number === 1 && attrs.connected_event) {
           return ["for-event"];
         }
       });
-
+      
       api.decorateWidget("post-menu:before-extra-controls", (helper) => {
         const post = helper.getModel();
-
+      
         if (post.connected_event && post.connected_event.can_manage) {
           return helper.attach("link", {
             attributes: {

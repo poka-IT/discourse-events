@@ -2,6 +2,7 @@ import { googleUri, icsUri } from "../lib/date-utilities";
 import { default as discourseComputed } from "discourse-common/utils/decorators";
 import { bind } from "@ember/runloop";
 import Component from "@ember/component";
+import { action } from "@ember/object";
 
 export default Component.extend({
   expanded: false,
@@ -23,12 +24,12 @@ export default Component.extend({
 
   @discourseComputed("topic.event")
   calendarUris() {
-    const topic = this.get("topic");
+    const topic = this.topic;
 
     let params = {
       event: topic.event,
       title: topic.title,
-      url: window.location.hostname + topic.get("url"),
+      url: window.location.hostname + topic.url,
     };
 
     if (topic.location && topic.location.geo_location) {
@@ -41,9 +42,8 @@ export default Component.extend({
     ];
   },
 
-  actions: {
-    expand() {
-      this.toggleProperty("expanded");
-    },
+  @action
+  expand() {
+    this.toggleProperty("expanded");
   },
 });

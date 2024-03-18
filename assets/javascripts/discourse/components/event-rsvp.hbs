@@ -1,0 +1,30 @@
+<DModal @title={{i18n "event_rsvp.modal.title"}} @class="event-rsvp-modal" @closeModal={{action "closeModal"}}>
+  <div class="header">
+    <ul class="types nav nav-pills">
+      <li class={{this.goingNavClass}}>
+        <a href {{on "click" (fn this.setType "going")}}>
+          {{i18n "event_rsvp.going.label"}}
+        </a>
+      </li>
+    </ul>
+    <Input class="filter" @value={{this.filter}} @placeholder={{i18n "event_rsvp.modal.filter"}} />
+  </div>
+
+  <div class="list">
+    {{#if this.loadingList}}
+      <LoadingSpinner @size="small" />
+    {{else}}
+      <ul>
+        {{#each this.filteredList as |user|}}
+          <li>
+            <UserInfo @user={{user}}>
+              {{#if user.can_send_private_message_to_user}}
+                <DButton @class="btn compose-pm" @action={{action "composePrivateMessage"}} @actionParam={{user}} @icon="envelope" @label="user.private_message" />
+              {{/if}}
+            </UserInfo>
+          </li>
+        {{/each}}
+      </ul>
+    {{/if}}
+  </div>
+</DModal>

@@ -1,22 +1,16 @@
 import Component from "@ember/component";
-import {
-  default as discourseComputed,
-  observes,
-} from "discourse-common/utils/decorators";
+import { inject as service } from "@ember/service";
+import { action } from "@ember/object";
 import { later, scheduleOnce } from "@ember/runloop";
-import {
-  compileEvent,
-  formTimeFormat,
-  nextInterval,
-  setupEventForm,
-  timezoneLabel,
-} from "../lib/date-utilities";
+import { compileEvent, formTimeFormat, nextInterval, setupEventForm, timezoneLabel } from "../lib/date-utilities";
 
-export default Component.extend({
-  classNames: "event-form",
-  endEnabled: false,
-  allDay: false,
-  showTimezone: false,
+export default class EventFormComponent extends Component {
+  @service modal;
+
+  // classNames = "event-form";
+  endEnabled = false;
+  allDay = false;
+  showTimezone = false;
 
   didInsertElement() {
     const props = setupEventForm(this.event, {
@@ -32,26 +26,15 @@ export default Component.extend({
       !this.endDate &&
       !this.endTime
     ) {
-      this.send("toggleEndEnabled", true);
+      this.toggleEndEnabled(true);
     }
-  },
+  }
 
   eventValid(event) {
     return !event || !event.end || moment(event.end).isSameOrAfter(event.start);
-  },
+  }
 
-  @observes(
-    "startDate",
-    "startTime",
-    "endDate",
-    "endTime",
-    "endEnabled",
-    "allDay",
-    "timezone",
-    "rsvpEnabled",
-    "goingMax",
-    "usersGoing"
-  )
+  @action
   eventUpdated() {
     let event = compileEvent({
       startDate: this.startDate,
@@ -66,7 +49,7 @@ export default Component.extend({
       usersGoing: this.usersGoing,
     });
     this.updateEvent(event, this.eventValid(event));
-  },
+  }
 
   setupTimePicker(type) {
     const time = this.get(`${type}Time`);
@@ -82,69 +65,73 @@ export default Component.extend({
         });
       });
     });
-  },
+  }
 
-  @discourseComputed()
-  timezones() {
-    const eventTimezones =
-      this.get("eventTimezones") || this.site.event_timezones;
+  get timezones() {
+    const eventTimezones = this.eventTimezones || this.site.event_timezones;
     return eventTimezones.map((tz) => {
       return {
         value: tz.value,
         name: timezoneLabel(tz.value, { siteSettings: this.siteSettings }),
       };
     });
-  },
+  }
 
-  @discourseComputed("endEnabled")
-  endClass(endEnabled) {
-    return endEnabled ? "" : "disabled";
-  },
+  get endClass() {
+    return this.endEnabled ? "" : "disabled";
+  }
 
-  actions: {
-    toggleEndEnabled(value) {
-      this.set("endEnabled", value);
+  @action
+  toggleEndEnabled(value) {
+    this.set("endEnabled", value);
 
-      if (value) {
-        if (!this.endDate) {
-          this.set("endDate", this.startDate);
-        }
-
-        if (!this.allDay) {
-          if (!this.endTime) {
-            let start = moment(this.startDate + " " + this.startTime);
-            this.set(
-              "endTime",
-              moment(start).add(1, "hours").format(formTimeFormat)
-            );
-          }
-
-          this.setupTimePicker("end");
-        }
-      } else {
-        this.setProperties({
-          endDate: undefined,
-          endTime: undefined,
-        });
+    if (value) {
+      if (!this.endDate) {
+        this.set("endDate", this.startDate);
       }
-    },
 
-    toggleAllDay(value) {
-      this.set("allDay", value);
-
-      if (!value) {
-        const start = nextInterval();
-
-        this.set("startTime", start.format(formTimeFormat));
-        this.setupTimePicker("start");
-
-        if (this.endEnabled) {
-          const end = moment(start).add(1, "hours");
-
-          this.set("endTime", end.format(formTimeFormat));
-          this.setupTimePicker("end");
+      if (!this.allDay) {
+        if (!this.endTime) {
+          let start = moment(this.startDate + " " + this.startTime);
+          this.set(
+            "endTime",
+            moment(start).add(1, "hours").format(formTimeFormat)
+          );
         }
+
+        this.setupTimePicker("end");
       }
-    },
-  },
-});
+    } else {
+      this.setProperties({
+        endDate: undefined,
+        endTime: undefined,
+      });
+    }
+  }
+
+  @action
+  toggleAllDay(value) {
+    this.set("allDay", value);
+
+    if (!value) {
+      const start = nextInterval();
+
+      this.set("startTime", start.format(formTimeFormat));
+      this.setupTimePicker("start");
+
+      if (this.endEnabled) {
+        const end = moment(start).add(1, "hours");
+
+        this.set("endTime", end.format(formTimeFormat));
+        this.setupTimePicker("end");
+      }
+    }
+  }
+
+  @action
+  showMyModal() {
+    this.modal.show(MyModal, {
+      model: { topic: this.topic, updateTopic: this.updateTopic },
+    });
+  }
+}

@@ -1,0 +1,50 @@
+<DModal
+  @title={{title}}
+  @closeModal={{@closeModal}}
+  class="add-event-modal"
+>
+  <form id="event-modal">
+    {{event-form
+      event=model.event
+      updateEvent=(action 'updateEvent')}}
+    <div class="modal-footer">
+      {{d-button action=(action "saveEvent") class="btn-primary" label="add_event.event_add"}}
+      <a href class="clear" {{on "click" (fn this.clear)}}>{{i18n 'add_event.event_clear'}}</a>
+    </div>
+  </form>
+</DModal>
+
+
+{{!-- <DModal @title={{this.title}} class="add-event-modal">
+  <EventForm
+    @event={{@model.event}}
+    @updateEvent={{this.updateEvent}}
+  />
+
+  <div class="modal-footer">
+    <DButton
+      @action={{this.saveEvent}}
+      @class="btn-primary"
+      @label={{i18n "add_event.event_add"}}
+    />
+    <DButton
+      @action={{this.clear}}
+      @class="btn-flat"
+      @label={{i18n "add_event.event_clear"}}
+    />
+  </div>
+</DModal> --}}
+
+
+{{!--
+{{#d-modal-body class="add-event-modal" id="event-modal" title=title}}
+  {{event-form
+    event=model.event
+    updateEvent=(action 'updateEvent')}}
+{{/d-modal-body}}
+
+<div class="modal-footer">
+  {{d-button action=(action "saveEvent") class="btn-primary" label="add_event.event_add"}}
+  <a href class="clear" {{on "click" (fn this.clear)}}>{{i18n 'add_event.event_clear'}}</a>
+</div>
+--}}
